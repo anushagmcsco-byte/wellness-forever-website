@@ -1,0 +1,371 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Hardened Global Helpers ---
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isBootstrappedAdmin() {
+      return isVerifiedUser()
+        && 'email' in request.auth.token
+        && request.auth.token.email is string
+        && request.auth.token.email.lower() == 'anusha.gmcsco@gmail.com';
+    }
+
+    function isAdmin() {
+      return isBootstrappedAdmin() || (isVerifiedUser() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
+    }
+
+    function isOwner(uid) {
+      return isVerifiedUser() && request.auth.uid == uid;
+    }
+
+    // --- Validation Blueprints ---
+    function isValidUserProfile(data) {
+      return data.keys().hasAll(['uid', 'displayName', 'email', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'displayName', 'email', 'photoURL', 'createdAt', 'updatedAt'])
+        && isValidId(data.uid)
+        && data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 120
+        && data.email is string && data.email.size() >= 3 && data.email.size() <= 200
+        && (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() <= 500))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidMedicine(data) {
+      return data.keys().hasAll([
+          'name', 'genericName', 'category', 'price', 'packSize',
+          'stock', 'requiresPrescription', 'description', 'imageKey',
+          'active', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'name', 'genericName', 'category', 'price', 'packSize',
+          'stock', 'requiresPrescription', 'description', 'imageKey',
+          'active', 'createdAt', 'updatedAt'
+        ])
+        && data.name is string && data.name.size() >= 2 && data.name.size() <= 140
+        && data.genericName is string && data.genericName.size() >= 2 && data.genericName.size() <= 140
+        && data.category in ['Prescription Rx', 'OTC & Pain Care', 'Vitamins & Immunity', 'Derma & Lifestyle']
+        && (data.price is int || data.price is float) && data.price > 0 && data.price <= 100000
+        && data.packSize is string && data.packSize.size() >= 1 && data.packSize.size() <= 60
+        && data.stock is int && data.stock >= 0 && data.stock <= 100000
+        && data.requiresPrescription is bool
+        && data.description is string && data.description.size() >= 5 && data.description.size() <= 1000
+        && data.imageKey in ['prescription', 'vitamins', 'derma']
+        && data.active is bool
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidOrder(data) {
+      return data.keys().hasAll([
+          'userId', 'userEmail', 'patientName', 'phone', 'address',
+          'city', 'postalCode', 'doctorName', 'prescriptionDate',
+          'prescriptionFileName', 'prescriptionDataUrl', 'hasPrescriptionItems',
+          'items', 'itemCount', 'totalAmount', 'status',
+          'paymentMethod', 'paymentStatus', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'userId', 'userEmail', 'patientName', 'phone', 'address',
+          'city', 'postalCode', 'doctorName', 'prescriptionDate',
+          'prescriptionFileName', 'prescriptionDataUrl', 'hasPrescriptionItems',
+          'items', 'itemCount', 'totalAmount', 'status',
+          'paymentMethod', 'paymentStatus', 'paymentRef',
+          'adminNotes', 'reviewedBy', 'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.userId)
+        && data.userEmail is string && data.userEmail.size() >= 3 && data.userEmail.size() <= 200
+        && data.patientName is string && data.patientName.size() >= 2 && data.patientName.size() <= 120
+        && data.phone is string && data.phone.size() >= 6 && data.phone.size() <= 30
+        && data.address is string && data.address.size() >= 5 && data.address.size() <= 300
+        && data.city is string && data.city.size() >= 2 && data.city.size() <= 100
+        && data.postalCode is string && data.postalCode.size() >= 3 && data.postalCode.size() <= 20
+        && data.doctorName is string && data.doctorName.size() >= 2 && data.doctorName.size() <= 120
+        && data.prescriptionDate is string && data.prescriptionDate.size() >= 4 && data.prescriptionDate.size() <= 30
+        && data.prescriptionFileName is string && data.prescriptionFileName.size() >= 1 && data.prescriptionFileName.size() <= 200
+        && data.prescriptionDataUrl is string && data.prescriptionDataUrl.size() >= 1 && data.prescriptionDataUrl.size() <= 550000
+        && data.hasPrescriptionItems is bool
+        && data.items is list && data.items.size() >= 1 && data.items.size() <= 25
+        && data.items[0] is map
+        && data.items[0].name is string && data.items[0].name.size() >= 1 && data.items[0].name.size() <= 140
+        && data.items[0].quantity is int && data.items[0].quantity >= 1 && data.items[0].quantity <= 100
+        && data.itemCount is int && data.itemCount >= 1 && data.itemCount <= 500
+        && (data.totalAmount is int || data.totalAmount is float) && data.totalAmount > 0 && data.totalAmount <= 500000
+        && data.status in ['pending_approval', 'approved', 'rejected', 'dispatched']
+        && data.paymentMethod in ['upi', 'card', 'cod']
+        && data.paymentStatus in ['paid_on_booking', 'pay_on_delivery', 'pending_verification']
+        && (!('paymentRef' in data) || (data.paymentRef is string && data.paymentRef.size() <= 80))
+        && (!('adminNotes' in data) || (data.adminNotes is string && data.adminNotes.size() <= 500))
+        && (!('reviewedBy' in data) || (data.reviewedBy is string && data.reviewedBy.size() <= 200))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidNotification(data) {
+      return data.keys().hasAll([
+          'recipientUid', 'targetRole', 'title', 'message',
+          'orderId', 'read', 'createdByUid', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'recipientUid', 'targetRole', 'title', 'message',
+          'orderId', 'read', 'createdByUid', 'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.recipientUid)
+        && data.targetRole in ['admin', 'customer']
+        && data.title is string && data.title.size() >= 2 && data.title.size() <= 140
+        && data.message is string && data.message.size() >= 2 && data.message.size() <= 500
+        && isValidId(data.orderId)
+        && data.read is bool
+        && isValidId(data.createdByUid)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidBlogPost(data) {
+      return data.keys().hasAll([
+          'title', 'category', 'excerpt', 'content',
+          'authorName', 'readTime', 'imageKey', 'published',
+          'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'title', 'category', 'excerpt', 'content',
+          'authorName', 'readTime', 'imageKey', 'published',
+          'createdAt', 'updatedAt'
+        ])
+        && data.title is string && data.title.size() >= 2 && data.title.size() <= 180
+        && data.category in ['Preventive Care', 'Medication Safety', 'Nutrition & Immunity', 'Skin & Wellness']
+        && data.excerpt is string && data.excerpt.size() >= 3 && data.excerpt.size() <= 400
+        && data.content is string && data.content.size() >= 5 && data.content.size() <= 12000
+        && data.authorName is string && data.authorName.size() >= 2 && data.authorName.size() <= 100
+        && data.readTime is string && data.readTime.size() >= 2 && data.readTime.size() <= 30
+        && data.imageKey in ['pharmacist', 'vitamins', 'derma', 'prescription']
+        && data.published is bool
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidEnquiry(data) {
+      return data.keys().hasAll([
+          'userId', 'name', 'email', 'phone', 'subject',
+          'message', 'status', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'userId', 'name', 'email', 'phone', 'subject',
+          'message', 'status', 'adminReply', 'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.userId)
+        && data.name is string && data.name.size() >= 2 && data.name.size() <= 120
+        && data.email is string && data.email.size() >= 3 && data.email.size() <= 200
+        && data.phone is string && data.phone.size() >= 6 && data.phone.size() <= 30
+        && data.subject is string && data.subject.size() >= 3 && data.subject.size() <= 160
+        && data.message is string && data.message.size() >= 5 && data.message.size() <= 2000
+        && data.status in ['new', 'in_review', 'resolved']
+        && (!('adminReply' in data) || (data.adminReply is string && data.adminReply.size() <= 1000))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    // --- Collection Rules ---
+
+    match /admins/{adminId} {
+      allow get: if isValidId(adminId) && (isOwner(adminId) || isBootstrappedAdmin());
+      allow list: if isBootstrappedAdmin();
+      allow create, update, delete: if isValidId(adminId) && isBootstrappedAdmin();
+    }
+
+    match /users/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isBootstrappedAdmin();
+      allow create: if isValidId(userId)
+        && isOwner(userId)
+        && isValidUserProfile(incoming())
+        && incoming().uid == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(userId)
+        && isValidUserProfile(incoming())
+        && (isOwner(userId) || isAdmin())
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'email', 'photoURL', 'updatedAt']);
+      allow delete: if false;
+    }
+
+    match /medicines/{medicineId} {
+      allow get: if isValidId(medicineId) && (existing().active == true || isAdmin());
+      allow list: if existing().active == true || isBootstrappedAdmin();
+      allow create: if isValidId(medicineId)
+        && isAdmin()
+        && isValidMedicine(incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(medicineId)
+        && isValidMedicine(incoming())
+        && isAdmin()
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'name', 'genericName', 'category', 'price', 'packSize',
+          'stock', 'requiresPrescription', 'description', 'imageKey',
+          'active', 'updatedAt'
+        ]);
+      allow delete: if isValidId(medicineId) && isAdmin();
+    }
+
+    match /orders/{orderId} {
+      allow get: if isValidId(orderId) && (isOwner(existing().userId) || isAdmin());
+      allow list: if (isVerifiedUser() && existing().userId == request.auth.uid) || isBootstrappedAdmin();
+      allow create: if isValidId(orderId)
+        && isVerifiedUser()
+        && isValidOrder(incoming())
+        && incoming().userId == request.auth.uid
+        && incoming().status == 'pending_approval'
+        && !('adminNotes' in incoming())
+        && !('reviewedBy' in incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(orderId)
+        && isValidOrder(incoming())
+        && incoming().userId == existing().userId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          (
+            isAdmin()
+            && incoming().diff(existing()).affectedKeys().hasOnly([
+              'status', 'adminNotes', 'reviewedBy',
+              'paymentMethod', 'paymentStatus', 'paymentRef',
+              'patientName', 'phone', 'address', 'city', 'postalCode',
+              'updatedAt'
+            ])
+          )
+          ||
+          (
+            isOwner(existing().userId)
+            && existing().status in ['pending_approval', 'rejected']
+            && incoming().status == 'pending_approval'
+            && incoming().diff(existing()).affectedKeys().hasOnly([
+              'patientName', 'phone', 'address', 'city', 'postalCode',
+              'doctorName', 'prescriptionDate', 'prescriptionFileName', 'prescriptionDataUrl',
+              'paymentMethod', 'paymentStatus', 'paymentRef',
+              'status', 'updatedAt'
+            ])
+          )
+        );
+      allow delete: if isValidId(orderId)
+        && (
+          isAdmin()
+          || (isOwner(existing().userId) && existing().status in ['pending_approval', 'rejected'])
+        );
+    }
+
+    match /notifications/{notificationId} {
+      allow get: if isValidId(notificationId)
+        && (isOwner(existing().recipientUid) || (existing().targetRole == 'admin' && isAdmin()));
+      allow list: if (isVerifiedUser() && existing().recipientUid == request.auth.uid)
+        || (isBootstrappedAdmin() && existing().targetRole == 'admin');
+      allow create: if isValidId(notificationId)
+        && isVerifiedUser()
+        && isValidNotification(incoming())
+        && incoming().createdByUid == request.auth.uid
+        && incoming().read == false
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && (
+          isAdmin() ||
+          (
+            (incoming().targetRole == 'admin' && incoming().recipientUid == 'ADMIN_BROADCAST') ||
+            (incoming().targetRole == 'customer' && incoming().recipientUid == request.auth.uid)
+          )
+        );
+      allow update: if isValidId(notificationId)
+        && isValidNotification(incoming())
+        && incoming().recipientUid == existing().recipientUid
+        && incoming().targetRole == existing().targetRole
+        && incoming().orderId == existing().orderId
+        && incoming().createdByUid == existing().createdByUid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          isAdmin() ||
+          (isOwner(existing().recipientUid) && incoming().diff(existing()).affectedKeys().hasOnly(['read', 'updatedAt']))
+        );
+      allow delete: if isValidId(notificationId) && isAdmin();
+    }
+
+    match /blogs/{blogId} {
+      allow get: if isValidId(blogId) && (existing().published == true || isAdmin());
+      allow list: if existing().published == true || isBootstrappedAdmin();
+      allow create: if isValidId(blogId)
+        && isAdmin()
+        && isValidBlogPost(incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(blogId)
+        && isValidBlogPost(incoming())
+        && isAdmin()
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'title', 'category', 'excerpt', 'content',
+          'authorName', 'readTime', 'imageKey', 'published', 'updatedAt'
+        ]);
+      allow delete: if isValidId(blogId) && isAdmin();
+    }
+
+    match /enquiries/{enquiryId} {
+      allow get: if isValidId(enquiryId) && (isOwner(existing().userId) || isAdmin());
+      allow list: if (isVerifiedUser() && existing().userId == request.auth.uid) || isBootstrappedAdmin();
+      allow create: if isValidId(enquiryId)
+        && isVerifiedUser()
+        && isValidEnquiry(incoming())
+        && incoming().userId == request.auth.uid
+        && incoming().status == 'new'
+        && !('adminReply' in incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(enquiryId)
+        && isValidEnquiry(incoming())
+        && incoming().userId == existing().userId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          (
+            isAdmin()
+            && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'adminReply', 'subject', 'message', 'updatedAt'])
+          )
+          ||
+          (
+            isOwner(existing().userId)
+            && existing().status == 'new'
+            && incoming().status == 'new'
+            && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'phone', 'subject', 'message', 'updatedAt'])
+          )
+        );
+      allow delete: if isValidId(enquiryId) && (isAdmin() || isOwner(existing().userId));
+    }
+  }
+}

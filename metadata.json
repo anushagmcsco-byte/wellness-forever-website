@@ -1,0 +1,6 @@
+{
+  "name": "Wellness Forever — Chemists & Lifestyle Store",
+  "description": "End-to-end digital pharmacy and lifestyle apothecary with prescription verification, online medicine booking, real-time pharmacist approvals, health editorial blog, and cross-device cloud sync.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

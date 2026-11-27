@@ -1,0 +1,463 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Registered customer or pharmacist account profile isolated per user.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "displayName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "maxLength": 200
+        },
+        "photoURL": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "displayName", "email", "createdAt", "updatedAt"]
+    },
+    "Medicine": {
+      "title": "Medicine",
+      "description": "Pharmacy product or prescription medication in the Wellness Forever catalog.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 140
+        },
+        "genericName": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 140
+        },
+        "category": {
+          "type": "string",
+          "enum": [
+            "Prescription Rx",
+            "OTC & Pain Care",
+            "Vitamins & Immunity",
+            "Derma & Lifestyle"
+          ]
+        },
+        "price": {
+          "type": "number"
+        },
+        "packSize": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        "stock": {
+          "type": "integer"
+        },
+        "requiresPrescription": {
+          "type": "boolean"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 5,
+          "maxLength": 1000
+        },
+        "imageKey": {
+          "type": "string",
+          "enum": ["prescription", "vitamins", "derma"]
+        },
+        "active": {
+          "type": "boolean"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "name",
+        "genericName",
+        "category",
+        "price",
+        "packSize",
+        "stock",
+        "requiresPrescription",
+        "description",
+        "imageKey",
+        "active",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "MedicineOrder": {
+      "title": "MedicineOrder",
+      "description": "Online medicine booking with patient verification and uploaded prescription awaiting pharmacist approval.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "userEmail": {
+          "type": "string",
+          "format": "email",
+          "maxLength": 200
+        },
+        "patientName": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 120
+        },
+        "phone": {
+          "type": "string",
+          "minLength": 6,
+          "maxLength": 30
+        },
+        "address": {
+          "type": "string",
+          "minLength": 5,
+          "maxLength": 300
+        },
+        "city": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 100
+        },
+        "postalCode": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 20
+        },
+        "doctorName": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 120
+        },
+        "prescriptionDate": {
+          "type": "string",
+          "minLength": 4,
+          "maxLength": 30
+        },
+        "prescriptionFileName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "prescriptionDataUrl": {
+          "type": "string",
+          "maxLength": 550000
+        },
+        "hasPrescriptionItems": {
+          "type": "boolean"
+        },
+        "items": {
+          "type": "array",
+          "description": "Bounded list of up to 25 booked medicine items."
+        },
+        "itemCount": {
+          "type": "integer"
+        },
+        "totalAmount": {
+          "type": "number"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending_approval", "approved", "rejected", "dispatched"]
+        },
+        "paymentMethod": {
+          "type": "string",
+          "enum": ["upi", "card", "cod"]
+        },
+        "paymentStatus": {
+          "type": "string",
+          "enum": ["paid_on_booking", "pay_on_delivery", "pending_verification"]
+        },
+        "paymentRef": {
+          "type": "string",
+          "maxLength": 80
+        },
+        "adminNotes": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "reviewedBy": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "userId",
+        "userEmail",
+        "patientName",
+        "phone",
+        "address",
+        "city",
+        "postalCode",
+        "doctorName",
+        "prescriptionDate",
+        "prescriptionFileName",
+        "prescriptionDataUrl",
+        "hasPrescriptionItems",
+        "items",
+        "itemCount",
+        "totalAmount",
+        "status",
+        "paymentMethod",
+        "paymentStatus",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "Real-time cross-device alert for medicine bookings and pharmacist approval decisions.",
+      "type": "object",
+      "properties": {
+        "recipientUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "targetRole": {
+          "type": "string",
+          "enum": ["admin", "customer"]
+        },
+        "title": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 140
+        },
+        "message": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 500
+        },
+        "orderId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "read": {
+          "type": "boolean"
+        },
+        "createdByUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "recipientUid",
+        "targetRole",
+        "title",
+        "message",
+        "orderId",
+        "read",
+        "createdByUid",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "BlogPost": {
+      "title": "BlogPost",
+      "description": "Wellness and pharmacy health editorial post managed by the Admin.",
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 180
+        },
+        "category": {
+          "type": "string",
+          "enum": [
+            "Preventive Care",
+            "Medication Safety",
+            "Nutrition & Immunity",
+            "Skin & Wellness"
+          ]
+        },
+        "excerpt": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 400
+        },
+        "content": {
+          "type": "string",
+          "minLength": 5,
+          "maxLength": 12000
+        },
+        "authorName": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 100
+        },
+        "readTime": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 30
+        },
+        "imageKey": {
+          "type": "string",
+          "enum": ["pharmacist", "vitamins", "derma", "prescription"]
+        },
+        "published": {
+          "type": "boolean"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "title",
+        "category",
+        "excerpt",
+        "content",
+        "authorName",
+        "readTime",
+        "imageKey",
+        "published",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "ContactEnquiry": {
+      "title": "ContactEnquiry",
+      "description": "Customer consultation or support enquiry stored for admin response and cross-device tracking.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 120
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "maxLength": 200
+        },
+        "phone": {
+          "type": "string",
+          "minLength": 6,
+          "maxLength": 30
+        },
+        "subject": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 160
+        },
+        "message": {
+          "type": "string",
+          "minLength": 5,
+          "maxLength": 2000
+        },
+        "status": {
+          "type": "string",
+          "enum": ["new", "in_review", "resolved"]
+        },
+        "adminReply": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "userId",
+        "name",
+        "email",
+        "phone",
+        "subject",
+        "message",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Private user profile documents restricted to owner or admin."
+    },
+    "/medicines/{medicineId}": {
+      "schema": { "$ref": "#/entities/Medicine" },
+      "description": "Pharmacy medicine and wellness catalog items."
+    },
+    "/orders/{orderId}": {
+      "schema": { "$ref": "#/entities/MedicineOrder" },
+      "description": "Medicine bookings with uploaded prescription documents and pharmacist approval status."
+    },
+    "/notifications/{notificationId}": {
+      "schema": { "$ref": "#/entities/Notification" },
+      "description": "Real-time notifications for new medicine bookings and approval updates."
+    },
+    "/blogs/{blogId}": {
+      "schema": { "$ref": "#/entities/BlogPost" },
+      "description": "Health and pharmacy blog posts published by the Admin."
+    },
+    "/enquiries/{enquiryId}": {
+      "schema": { "$ref": "#/entities/ContactEnquiry" },
+      "description": "Customer contact enquiries and pharmacist responses."
+    }
+  }
+}

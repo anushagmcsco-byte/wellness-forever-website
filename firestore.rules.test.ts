@@ -1,0 +1,98 @@
+/**
+ * Security Rule Verification Suite for Wellness Forever Pharmacy
+ * Validates the "Dirty Dozen" adversarial payloads against DRAFT_firestore.rules / firestore.rules
+ */
+export const dirtyDozenPayloads = [
+  {
+    name: '1. Unverified Admin Email Spoof',
+    auth: { uid: 'attacker1', token: { email: 'anusha.gmcsco@gmail.com', email_verified: false } },
+    operation: 'update',
+    path: '/orders/order_1',
+    expected: 'PERMISSION_DENIED',
+  },
+  {
+    name: '2. Self-Approval State Shortcut on Order Create',
+    auth: { uid: 'user_1', token: { email: 'user@example.com', email_verified: true } },
+    operation: 'create',
+    path: '/orders/order_new',
+    payload: { status: 'approved' },
+    expected: 'PERMISSION_DENIED',
+  },
+  {
+    name: '3. Customer Order Price/Status Tampering',
+    auth: { uid: 'user_1', token: { email: 'user@example.com', email_verified: true } },
+    operation: 'update',
+    path: '/orders/order_1',
+    payload: { status: 'approved', totalAmount: 0.01 },
+    expected: 'PERMISSION_DENIED',
+  },
+  {
+    name: '4. Shadow Field Injection on Order',
+    auth: { uid: 'user_1', token: { email: 'user@example.com', email_verified: true } },
+    operation: 'create',
+    path: '/orders/order_shadow',
+    payload: { isAdmin: true },
+    expected: 'PERMISSION_DENIED',
+  },
+  {
+    name: '5. Identity Spoofing on Enquiry',
+    auth: { uid: 'user_1', token: { email: 'user@example.com', email_verified: true } },
+    operation: 'create',
+    path: '/enquiries/enq_spoof',
+    payload: { userId: 'user_2' },
+    expected: 'PERMISSION_DENIED',
+  },
+  {
+    name: '6. Document ID Poisoning',
+    auth: { uid: 'user_1', token: { email: 'user@example.com', email_verified: true } },
+    operation: 'create',
+    path: '/orders/' + 'x'.repeat(200),
+    expected: 'PERMISSION_DENIED',
+  },
+  {
+    name: '7. Oversized Prescription Payload (Denial of Wallet)',
+    auth: { uid: 'user_1', token: { email: 'user@example.com', email_verified: true } },
+    operation: 'create',
+    path: '/orders/order_big',
+    payload: { prescriptionDataUrl: 'a'.repeat(600000) },
+    expected: 'PERMISSION_DENIED',
+  },
+  {
+    name: '8. Unbounded Items Array',
+    auth: { uid: 'user_1', token: { email: 'user@example.com', email_verified: true } },
+    operation: 'create',
+    path: '/orders/order_arr',
+    payload: { items: new Array(30).fill({ name: 'Item', quantity: 1 }) },
+    expected: 'PERMISSION_DENIED',
+  },
+  {
+    name: '9. Client Timestamp Forgery',
+    auth: { uid: 'user_1', token: { email: 'user@example.com', email_verified: true } },
+    operation: 'create',
+    path: '/orders/order_ts',
+    payload: { createdAt: new Date('2020-01-01T00:00:00Z') },
+    expected: 'PERMISSION_DENIED',
+  },
+  {
+    name: '10. Cross-User PII Read on Orders',
+    auth: { uid: 'user_2', token: { email: 'other@example.com', email_verified: true } },
+    operation: 'get',
+    path: '/orders/order_owned_by_user_1',
+    expected: 'PERMISSION_DENIED',
+  },
+  {
+    name: '11. Non-Admin Medicine Catalog Write',
+    auth: { uid: 'user_1', token: { email: 'user@example.com', email_verified: true } },
+    operation: 'create',
+    path: '/medicines/med_hack',
+    expected: 'PERMISSION_DENIED',
+  },
+  {
+    name: '12. Forged Customer Notification to Another User',
+    auth: { uid: 'user_1', token: { email: 'user@example.com', email_verified: true } },
+    operation: 'create',
+    path: '/notifications/notif_spoof',
+    payload: { targetRole: 'customer', recipientUid: 'user_2' },
+    expected: 'PERMISSION_DENIED',
+  },
+];
